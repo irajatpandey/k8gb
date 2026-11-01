@@ -6,22 +6,12 @@ on:
       - master
     tags:
       - '**'
-    paths-ignore:
-      - '**.md'
-      - '**.svg'
-      - '**.drawio'
-      - '.spelling'
   pull_request:
     branches:
       - master
     # The specific activity types are listed here to include "labeled" and "unlabeled"
     # (which are not included by default for the "pull_request" trigger).
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-    paths-ignore:
-      - '**.md'
-      - '**.svg'
-      - '**.drawio'
-      - '.spelling'
 permissions:
   contents: read
 
@@ -40,7 +30,7 @@ jobs:
         k8s-version: ${{ contains(github.event.pull_request.labels.*.name, 'heavy-tests') && fromJSON('["v1.32.11-k3s1","v1.33.7-k3s1","v1.34.3-k3s1"]') || fromJSON('["v1.34.3-k3s1"]') }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
         with:
           egress-policy: block
           # Audit: https://github.com/k8gb-io/k8gb/actions/runs/34329541730
@@ -100,12 +90,12 @@ jobs:
       - name: Setup helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v4.3.0
+          version: v4.3.1
 
       - name: Build artifacts
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          version: v2.18.3
+          version: v2.19.0
           args: release --clean --skip=publish,validate,sbom,sign --snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -157,3 +147,18 @@ jobs:
         with:
           name: chainsaw-logs-${{ matrix.k8s-version }}
           path: ${{ github.workspace }}/tmp/chainsaw
+
+  required:
+    name: CI / Chainsaw
+    if: ${{ always() }}
+    needs: [chainsaw]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: block
+      - name: Reject failed or cancelled jobs
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

@@ -1,7 +1,7 @@
 header:
   schema-version: 2.2.0
-  last-updated: '2026-10-23'
-  last-reviewed: '2026-10-23'
+  last-updated: '2026-10-31'
+  last-reviewed: '2026-10-31'
   url: https://raw.githubusercontent.com/k8gb-io/k8gb/master/SECURITY-INSIGHTS.yml
 
 project:
@@ -47,6 +47,7 @@ project:
   documentation:
     quickstart-guide: https://www.k8gb.io/local/
     detailed-guide: https://www.k8gb.io/tutorials/
+    design: https://github.com/k8gb-io/k8gb/blob/master/ARCHITECTURE.md
     code-of-conduct: https://github.com/k8gb-io/k8gb/blob/master/CODE_OF_CONDUCT.md
     release-process: https://github.com/k8gb-io/k8gb/blob/master/CONTRIBUTING.md#release-process
     signature-verification: https://github.com/k8gb-io/k8gb/blob/master/CONTRIBUTING.md#verification-instructions
@@ -130,11 +131,12 @@ repository:
       self:
         name: k8gb security self-assessment
         evidence: https://github.com/k8gb-io/k8gb/blob/master/self-assessment.md
-        date: '2025-12-04'
+        date: '2026-10-31'
         comment: |
-          Self-assessment following the CNCF TAG Security and Compliance
-          template. A copy was added to the CNCF TOC repository in
-          cncf/toc#1977, merged on 2025-12-04.
+          Self-assessment following the OpenSSF security self-assessment
+          template, reviewed by the maintainers in k8gb#2574. An earlier
+          version, based on the CNCF TAG Security and Compliance template,
+          was added to the CNCF TOC repository in cncf/toc#1977.
     tools:
       - name: CodeQL
         type: SAST
@@ -150,8 +152,9 @@ repository:
             location: https://github.com/k8gb-io/k8gb/actions/workflows/codeql-analysis.yml
             predicate-uri: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
         comment: |
-          Runs on pull requests and pushes to master that change Go code, and
-          weekly on a schedule. Results go to GitHub code scanning.
+          Runs on every pull request, on pushes to master, and weekly. Reports
+          the Go analysis job check and separate security results through
+          GitHub code scanning.
       - name: OpenSSF Scorecard
         type: other
         rulesets:
@@ -166,3 +169,23 @@ repository:
             location: https://scorecard.dev/viewer/?uri=github.com/k8gb-io/k8gb
             predicate-uri: https://github.com/ossf/scorecard
         comment: Runs on pushes to master, on branch protection changes, and weekly.
+      - name: OSPS Baseline Scanner
+        type: other
+        rulesets:
+          - osps-baseline
+        integration:
+          adhoc: true
+          ci: false
+          release: false
+        results:
+          adhoc:
+            name: OSPS Baseline evaluation
+            location: https://grc.store/targets/k8gb-io/k8gb
+            predicate-uri: https://github.com/revanite-io/pvtr-publish-results
+        comment: |
+          Scans the repository against the OSPS Baseline at Maturity Level 2
+          weekly and on demand, and publishes the signed result to grc.store
+          (see .github/workflows/publish-to-grc-store.yml).
+          Manual-review evidence for privileged workflows, external interfaces,
+          self-assessment coverage, and advisory publication is recorded at
+          https://github.com/k8gb-io/k8gb/blob/master/SECURITY.md#osps-baseline-review-evidence.
