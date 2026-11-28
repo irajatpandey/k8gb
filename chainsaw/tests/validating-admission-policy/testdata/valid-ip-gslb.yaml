@@ -1,0 +1,24 @@
+apiVersion: k8gb.io/v1beta1
+kind: Gslb
+metadata:
+  name: valid-ip
+  namespace: ($namespace)
+  annotations:
+    k8gb.io/exposed-ip-addresses: "192.0.2.1"
+spec:
+  ingress:
+    ingressClassName: nginx
+    rules:
+    - host: valid-ip.cloud.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: frontend-podinfo
+              port:
+                name: http
+  strategy:
+    type: roundRobin
+    dnsTtlSeconds: 5

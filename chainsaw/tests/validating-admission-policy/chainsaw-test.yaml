@@ -1,0 +1,105 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: validating-admission-policy
+spec:
+  concurrent: false
+  namespace: validating-admission-policy
+  steps:
+  - name: namespace
+    cluster: eu
+    use:
+      template: ../../step-templates/namespace.yaml
+  - name: validating admission policy enforcement
+    description: >-
+      installs ValidatingAdmissionPolicy from the chart and verifies that valid IP/hostname annotations
+      are accepted and invalid formats (invalid octets, hostnames, IPv6, empty tokens) are rejected
+    cluster: eu
+    try:
+    - apply:
+        file: ./testdata/policies.yaml
+    - apply:
+        file: ./testdata/valid-ip-gslb.yaml
+    - script:
+        content: |
+          set -eu
+          kubectl patch gslb valid-ip -n "$NAMESPACE" --type=merge -p '{"metadata":{"annotations":{"k8gb.io/exposed-ip-addresses":"192.0.2.1, 192.0.2.2"}}}'
+          kubectl patch gslb valid-ip -n "$NAMESPACE" --type=merge -p '{"metadata":{"annotations":{"k8gb.io/exposed-ip-addresses":"  192.0.2.10 ,  192.0.2.20  "}}}'
+    - script:
+        content: |
+          kubectl annotate gslb valid-ip -n "$NAMESPACE" --overwrite k8gb.io/exposed-ip-addresses="256.256.256.256"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid IPv4 addresses')): true
+    - script:
+        content: |
+          kubectl annotate gslb valid-ip -n "$NAMESPACE" --overwrite k8gb.io/exposed-ip-addresses="2001:db8::1"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid IPv4 addresses')): true
+    - script:
+        content: |
+          kubectl annotate gslb valid-ip -n "$NAMESPACE" --overwrite k8gb.io/exposed-ip-addresses="192.0.2.1,"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid IPv4 addresses')): true
+    - script:
+        content: |
+          kubectl annotate gslb valid-ip -n "$NAMESPACE" --overwrite k8gb.io/exposed-ip-addresses="invalid-hostname"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid IPv4 addresses')): true
+    - apply:
+        file: ./testdata/valid-hostname-gslb.yaml
+    - script:
+        content: |
+          set -eu
+          kubectl patch gslb valid-hostname -n "$NAMESPACE" --type=merge -p '{"metadata":{"annotations":{"k8gb.io/exposed-hostnames":"node1.example.com, node2.example.com"}}}'
+    - script:
+        content: |
+          kubectl annotate gslb valid-hostname -n "$NAMESPACE" --overwrite k8gb.io/exposed-hostnames="not valid hostname!"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid RFC 1123 hostnames')): true
+    - script:
+        content: |
+          kubectl annotate gslb valid-hostname -n "$NAMESPACE" --overwrite k8gb.io/exposed-hostnames="node1.example.com,"
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid RFC 1123 hostnames')): true
+    - script:
+        content: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: k8gb.absa.oss/v1beta1
+          kind: Gslb
+          metadata:
+            name: legacy-denied-ip
+            namespace: "$NAMESPACE"
+            annotations:
+              k8gb.io/exposed-ip-addresses: "invalid-ip"
+          spec:
+            ingress:
+              ingressClassName: nginx
+              rules:
+              - host: legacy-admission.cloud.example.com
+                http:
+                  paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: frontend-podinfo
+                        port:
+                          name: http
+            strategy:
+              type: roundRobin
+              dnsTtlSeconds: 5
+          EOF
+        check:
+          ($error != null): true
+          (contains($stderr, 'must contain valid IPv4 addresses')): true
+    finally:
+    - script:
+        content: |
+          kubectl delete validatingadmissionpolicy k8gb-exposed-ip-annotation k8gb-exposed-hostnames-annotation --ignore-not-found
+          kubectl delete validatingadmissionpolicybinding k8gb-exposed-ip-annotation k8gb-exposed-hostnames-annotation --ignore-not-found

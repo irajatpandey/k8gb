@@ -85,6 +85,18 @@ func TestParseIPAddresses(t *testing.T) {
 			[]string{"10.0.0.1"},
 			false,
 		},
+		{
+			"single IPv6 address is rejected",
+			"2001:db8::1",
+			[]string{},
+			true,
+		},
+		{
+			"multiple IP addresses containing IPv6 are rejected",
+			"10.0.0.1, 2001:db8::1",
+			[]string{},
+			true,
+		},
 	}
 
 	// Run each test case

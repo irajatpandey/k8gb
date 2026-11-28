@@ -24,13 +24,13 @@ import (
 	"strings"
 )
 
-// ParseIPAddresses parse a comma separated string of ip addresses into a list of net.IP
+// ParseIPAddresses parse a comma separated string of IPv4 addresses into a list of strings
 func ParseIPAddresses(ipsStr string) ([]string, error) {
 	IPs := []string{}
 	for _, rawIPStr := range strings.Split(ipsStr, ",") {
 		ipStr := strings.TrimSpace(rawIPStr)
 		ipAddr := net.ParseIP(ipStr)
-		if ipAddr == nil {
+		if ipAddr == nil || ipAddr.To4() == nil {
 			return []string{}, fmt.Errorf("invalid IP address: %s", rawIPStr)
 		}
 		IPs = append(IPs, ipAddr.String())
